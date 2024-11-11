@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Sensor Data Charts</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.8.0/Chart.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+    <div class="row">
+        <!-- Temperature Node 1 Chart -->
+        <div class="col-12 mt-4">
+            <div class="card">
+                <div class="card-body">
+                    <h4 class="card-title">Temperature Node 1 Data</h4>
+                    <canvas id="temperature1Chart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Humidity Node 1 Chart -->
+        <div class="col-12 mt-4">
+            <div class="card">
+                <div class="card-body">
+                    <h4 class="card-title">Humidity Node 1 Data</h4>
+                    <canvas id="humidity1Chart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Temperature Node 2 Chart -->
+        <div class="col-12 mt-4">
+            <div class="card">
+                <div class="card-body">
+                    <h4 class="card-title">Temperature Node 2 Data</h4>
+                    <canvas id="temperature2Chart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Humidity Node 2 Chart -->
+        <div class="col-12 mt-4">
+            <div class="card">
+                <div class="card-body">
+                    <h4 class="card-title">Humidity Node 2 Data</h4>
+                    <canvas id="humidity2Chart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Air Quality Chart -->
+        <div class="col-12 mt-4">
+            <div class="card">
+                <div class="card-body">
+                    <h4 class="card-title">Air Quality Data</h4>
+                    <canvas id="airQualityChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Predicted Air Quality Chart -->
+        <div class="col-12 mt-4">
+            <div class="card">
+                <div class="card-body">
+                    <h4 class="card-title">Predicted Air Quality Data</h4>
+                    <canvas id="predictedAirQualityChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.8.0/Chart.min.js"></script>
+
+<script>
+    $(document).ready(function () {
+        // Configuration function for charts
+        const createConfig = (label, bgColor, borderColor) => ({
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: label,
+                    backgroundColor: bgColor,
+                    borderColor: borderColor,
+                    data: [],
+                    fill: false,
+                }],
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    xAxes: [{
+                        display: true,
+                        scaleLabel: { display: true, labelString: 'Time' }
+                    }],
+                    yAxes: [{
+                        display: true,
+                        scaleLabel: { display: true, labelString: label }
+                    }]
+                }
+            }
+        });
+
+        // Chart configurations
+        const temperature1Config = createConfig("Temperature Node 1 (°C)", 'rgba(255, 99, 132, 0.2)', 'rgb(255, 99, 132)');
+        const humidity1Config = createConfig("Humidity Node 1 (%)", 'rgba(54, 162, 235, 0.2)', 'rgb(54, 162, 235)');
+        const temperature2Config = createConfig("Temperature Node 2 (°C)", 'rgba(75, 192, 192, 0.2)', 'rgb(75, 192, 192)');
+        const humidity2Config = createConfig("Humidity Node 2 (%)", 'rgba(153, 102, 255, 0.2)', 'rgb(153, 102, 255)');
+        const airQualityConfig = createConfig("Air Quality (PPM)", 'rgba(255, 206, 86, 0.2)', 'rgb(255, 206, 86)');
+        const predictedAirQualityConfig = createConfig("Predicted Air Quality (PPM)", 'rgba(255, 159, 64, 0.2)', 'rgb(255, 159, 64)');
+
+        // Chart instances
+        const temp1Chart = new Chart(document.getElementById('temperature1Chart').getContext('2d'), temperature1Config);
+        const hum1Chart = new Chart(document.getElementById('humidity1Chart').getContext('2d'), humidity1Config);
+        const temp2Chart = new Chart(document.getElementById('temperature2Chart').getContext('2d'), temperature2Config);
+        const hum2Chart = new Chart(document.getElementById('humidity2Chart').getContext('2d'), humidity2Config);
+        const airQualityChart = new Chart(document.getElementById('airQualityChart').getContext('2d'), airQualityConfig);
+        const predictedAirQualityChart = new Chart(document.getElementById('predictedAirQualityChart').getContext('2d'), predictedAirQualityConfig);
+
+        // Real-time data stream using EventSource
+        const source = new EventSource("/chart-data");
+
+        source.onmessage = function (event) {
+            const data = JSON.parse(event.data);
+            const currentTime = data.time;
+
+            const updateChart = (chart, config, newData) => {
+                if (config.data.labels.length === 20) {
+                    config.data.labels.shift();
+                    config.data.datasets[0].data.shift();
+                }
+                config.data.labels.push(currentTime);
+                config.data.datasets[0].data.push(newData || 0);
+                chart.update();
+            };
+
+            // Update the charts with the received data
+            updateChart(temp1Chart, temperature1Config, data.temperature1);
+            updateChart(hum1Chart, humidity1Config, data.humidity1);
+            updateChart(temp2Chart, temperature2Config, data.temperature2);
+            updateChart(hum2Chart, humidity2Config, data.humidity2);
+            updateChart(airQualityChart, airQualityConfig, data.air_quality);
+            updateChart(predictedAirQualityChart, predictedAirQualityConfig, data.predicted_air_quality);  // Predicted air quality data
+        };
+    });
+</script>
+</body>
+</html>
